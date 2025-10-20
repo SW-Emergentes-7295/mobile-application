@@ -1,16 +1,31 @@
-# visualguide
+# Visualguide
 
-A new Flutter project.
+A flutter application project for the Visualguide app.
 
 ## Getting Started
 
 This project is a starting point for a Flutter application.
 
-A few resources to get you started if this is your first Flutter project:
+## Prerequisites
+- Flutter SDK
+- Dart SDK
+- An IDE such as Android Studio, VS Code, or IntelliJ IDEA
+- An emulator or physical device for testing
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Installation
+1. Clone the repository:
+   ```
+   git clone <repository-url>
+   ```
+2. Navigate to the project directory:
+   ```
+    cd visualguide
+    ```
+3. Install dependencies:
+   ```
+   flutter pub get
+   ```
+4. Run the application:
+   ```
+    flutter run
+    ```
