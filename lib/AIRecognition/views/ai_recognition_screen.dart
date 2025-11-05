@@ -1,5 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:visualguide/AIRecognition/views/settings_screen.dart';
 import 'package:visualguide/shared/widgets/top_nav_bar.dart';
 import 'package:visualguide/shared/widgets/bottom_nav_bar.dart';
 import 'package:visualguide/AIRecognition/widgets/transcript_panel.dart';
@@ -96,6 +97,20 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
       _isListening = false;
       _messages.clear();
     });
+  }
+
+  void _handleNavigation(int index) {
+    setState(() {
+      _currentNavIndex = index;
+    });
+
+    if (index == 2) {
+      // Navegar a configuración
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const SettingsScreen()),
+      );
+    }
   }
 
   @override
@@ -215,11 +230,7 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
         height: bottomBarHeight + bottomInset,
         child: BottomNavBar(
           currentIndex: _currentNavIndex,
-          onTap: (index) {
-            setState(() {
-              _currentNavIndex = index;
-            });
-          },
+          onTap: _handleNavigation,
         ),
       ),
     );

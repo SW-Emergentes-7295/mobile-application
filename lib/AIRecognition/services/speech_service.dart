@@ -43,4 +43,32 @@ class SpeechService {
     await _flutterTts.stop();
     await stopListening();
   }
+
+  // Método para cambiar la velocidad de habla dinámicamente
+  Future<void> setSpeechRate(double rate) async {
+    // rate debe estar entre 0.0 y 1.0
+    await _flutterTts.setSpeechRate(rate);
+  }
+
+  // Método para cambiar el tono de voz
+  Future<void> setVoiceTone(String tone) async {
+    // TODO: Implementar lógica para diferentes tonos
+    switch (tone) {
+      case 'serious':
+        await _flutterTts.setPitch(0.8);
+        await _flutterTts.setSpeechRate(0.4);
+        break;
+      case 'clear':
+        await _flutterTts.setPitch(1.0);
+        await _flutterTts.setSpeechRate(0.5);
+        break;
+      case 'fast':
+        await _flutterTts.setPitch(1.1);
+        await _flutterTts.setSpeechRate(0.7);
+        break;
+      default:
+        await _flutterTts.setPitch(1.0);
+        await _flutterTts.setSpeechRate(0.5);
+    }
+  }
 }
