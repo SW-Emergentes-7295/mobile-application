@@ -57,19 +57,17 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
     print('isListening: $_isListening');
     if (_isListening) {
       await _speechService.startListening((recognizedWords) {
-        print('Recognized Words: $recognizedWords');
         if (recognizedWords.isNotEmpty) {
-          // hasta que se apague el microfono !_islistening, agregar el TranscriptionMessage completo
           setState(() {
-            // Actualizar el mensaje en proceso
             _messageInProcess = recognizedWords;
           });
+
+          print('Recognized Words: $recognizedWords');
         }
       });
     } else {
       await _speechService.stopListening();
 
-      // Agregar el mensaje finalizado a la lista
       setState(() {
         _messages.add(TranscriptMessage(
           speaker: 'User',
@@ -78,9 +76,7 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
         ));
       });
 
-      // respuesta de la ia
       _processCommand(_messageInProcess);
-
       _messageInProcess = "";
     }
   }
