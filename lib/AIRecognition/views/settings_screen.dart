@@ -39,6 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _saveSettings() async {
     final success = await _settingsService.saveSettings(_settings);
     if (success && mounted) {
+      /*
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Configuración guardada exitosamente'),
@@ -46,6 +47,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           duration: Duration(seconds: 2),
         ),
       );
+      */
     }
   }
 

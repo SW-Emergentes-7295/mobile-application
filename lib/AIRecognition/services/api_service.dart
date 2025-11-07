@@ -2,12 +2,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  final String baseUrl = 'https://your-api-url.com/api';
+  final String baseUrl = 'http://192.168.1.54:5000/api/v1';
 
   Future<String> sendVoiceCommand(String command) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/voice-command'),
+        Uri.parse('$baseUrl/ai-recognition/voice-command'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'command': command}),
       );
@@ -16,8 +16,11 @@ class ApiService {
         final data = jsonDecode(response.body);
         return data['response'] ?? '';
       }
+
+      print('API Error: ${response.statusCode} - ${response.body}');
       return 'Error en la respuesta';
     } catch (e) {
+      print('Connection Error: $e');
       return 'Error de conexión';
     }
   }

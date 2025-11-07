@@ -24,6 +24,7 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
   int _currentNavIndex = 1;
   bool _isListening = false;
   List<TranscriptMessage> _messages = [];
+  String _messageInProcess = "";
 
   @override
   void initState() {
@@ -32,22 +33,14 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
     // Mensaje de ejemplo inicial
     _messages = [
       TranscriptMessage(
-        speaker: 'User',
-        text: 'I want to go to the kitchen and look for a spoon to eat.',
-        timestamp: DateTime.now(),
-      ),
-      TranscriptMessage(
         speaker: 'Assistant',
         text:
-            'Perfect Arian! Walk straight ahead, turn left and you will find the door, enter and on your right side will be the spoons.',
-        timestamp: DateTime.now(),
-      ),
-      TranscriptMessage(
-        speaker: 'User',
-        text: 'Thank you very much!',
+            'Hola! Estoy listo para asistirte. Presiona el botón de micrófono y comienza a hablar.',
         timestamp: DateTime.now(),
       ),
     ];
+
+    _messageInProcess = "";
   }
 
   Future<void> _initializeServices() async {
@@ -61,21 +54,34 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
       _isListening = !_isListening;
     });
 
+    print('isListening: $_isListening');
     if (_isListening) {
       await _speechService.startListening((recognizedWords) {
+        print('Recognized Words: $recognizedWords');
         if (recognizedWords.isNotEmpty) {
+          // hasta que se apague el microfono !_islistening, agregar el TranscriptionMessage completo
           setState(() {
-            _messages.add(TranscriptMessage(
-              speaker: 'User',
-              text: recognizedWords,
-              timestamp: DateTime.now(),
-            ));
+            // Actualizar el mensaje en proceso
+            _messageInProcess = recognizedWords;
           });
-          _processCommand(recognizedWords);
         }
       });
     } else {
       await _speechService.stopListening();
+
+      // Agregar el mensaje finalizado a la lista
+      setState(() {
+        _messages.add(TranscriptMessage(
+          speaker: 'User',
+          text: _messageInProcess,
+          timestamp: DateTime.now(),
+        ));
+      });
+
+      // respuesta de la ia
+      _processCommand(_messageInProcess);
+
+      _messageInProcess = "";
     }
   }
 
@@ -88,6 +94,7 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
         timestamp: DateTime.now(),
       ));
     });
+
     await _speechService.speak(response);
   }
 
@@ -222,6 +229,12 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
                   ),
                 ),
               ],
+            ),
+          ),
+          SizedBox(
+            height: panelHeight,
+            child: TranscriptPanel(
+              messages: _messages,
             ),
           ),
         ],

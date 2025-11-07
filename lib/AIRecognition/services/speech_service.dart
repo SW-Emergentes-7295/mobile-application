@@ -17,22 +17,16 @@ class SpeechService {
   }
 
   Future<void> startListening(Function(String) onResult) async {
-    if (!_isListening) {
-      _isListening = true;
-      await _speechToText.listen(
-        onResult: (result) {
-          onResult(result.recognizedWords);
-        },
-        localeId: 'es_ES',
-      );
-    }
+    await _speechToText.listen(
+      onResult: (result) {
+        onResult(result.recognizedWords);
+      },
+      localeId: 'es_ES',
+    );
   }
 
   Future<void> stopListening() async {
-    if (_isListening) {
-      _isListening = false;
-      await _speechToText.stop();
-    }
+    await _speechToText.stop();
   }
 
   Future<void> speak(String text) async {
