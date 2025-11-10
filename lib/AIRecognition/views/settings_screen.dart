@@ -6,6 +6,7 @@ import 'package:visualguide/AIRecognition/widgets/custom_slider.dart';
 import 'package:visualguide/AIRecognition/models/app_settings.dart';
 import 'package:visualguide/AIRecognition/services/settings_service.dart';
 import 'package:visualguide/AIRecognition/services/speech_service.dart';
+import 'package:visualguide/AIRecognition/services/api_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -17,21 +18,47 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final SettingsService _settingsService = SettingsService();
   final SpeechService _speechService = SpeechService();
-  late AppSettings _settings;
+  late AppSettings _settings =
+      AppSettings(); // default to avoid LateInitializationError
   bool _isLoading = true;
   int _currentNavIndex = 2;
 
   @override
   void initState() {
     super.initState();
-    _loadSettings();
     _speechService.initialize();
+    _loadSettings().then((_) => _getLinkedFamiliarConnection());
+  }
+
+  Future<void> _getLinkedFamiliarConnection() async {
+    //final userId = _settings.userId;
+    final userId = "";
+    final apiService = ApiService();
+    final response = await apiService.getFamiliarLinked(userId);
+    if (response.containsKey('name') && response.containsKey('id')) {
+      setState(() {
+        _settings = _settings.copyWith(
+          familiarConnectionName: response['name'],
+          familiarConnectionId: response['id'],
+        );
+      });
+      _saveSettings();
+    } else {
+      print('Error fetching familiar connection: ${response['error']}');
+
+      setState(() {
+        _settings = _settings.copyWith(
+          familiarConnectionName: '',
+          familiarConnectionId: '',
+        );
+      });
+    }
   }
 
   Future<void> _loadSettings() async {
     final settings = await _settingsService.loadSettings();
     setState(() {
-      _settings = settings;
+      _settings = settings.copyWith(miniModelEnabled: true);
       _isLoading = false;
     });
   }
@@ -56,7 +83,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _settings = _settings.copyWith(speechRate: value);
     });
     _saveSettings();
-    // TODO: Aplicar cambio al servicio de voz
     _speechService.setSpeechRate(value);
   }
 
@@ -75,20 +101,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _saveSettings();
   }
 
-  void _toggleMiniModel(bool value) {
-    setState(() {
-      _settings = _settings.copyWith(miniModelEnabled: value);
-    });
-    _saveSettings();
-    // TODO: Activar/desactivar modelo mini en el backend
-  }
-
   void _selectVoiceTone(String tone) {
     setState(() {
       _settings = _settings.copyWith(voiceTone: tone);
     });
     _saveSettings();
-    // TODO: Aplicar tono de voz seleccionado
+
+    _speechService.setVoiceTone(tone);
   }
 
   void _linkFamiliarConnection() {
@@ -293,8 +312,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             Transform.scale(
                               scale: 0.8,
                               child: Switch(
-                                value: _settings.miniModelEnabled,
-                                onChanged: _toggleMiniModel,
+                                value: true, // always enabled
+                                onChanged: null, // null disables interaction
                                 activeColor: const Color(0xFF239B56),
                               ),
                             ),
@@ -308,10 +327,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         // Familiar Connection
                         Row(
                           children: [
-                            const Icon(
-                              Icons.check,
-                              size: 28,
-                            ),
+                            _settings.familiarConnectionId.isNotEmpty
+                                ? const Icon(
+                                    Icons.check,
+                                    size: 28,
+                                  )
+                                : const Icon(
+                                    Icons.link_off,
+                                    size: 28,
+                                  ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
@@ -325,14 +349,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     ),
                                   ),
                                   Text(
-                                    _settings.familiarConnectionName,
+                                    _settings.familiarConnectionName.isNotEmpty
+                                        ? _settings.familiarConnectionName
+                                        : 'No linked familiar connection',
                                     style: TextStyle(
                                       fontSize: 13,
                                       color: Colors.grey[700],
                                     ),
                                   ),
                                   Text(
-                                    'ID: ${_settings.familiarConnectionId}',
+                                    'ID: ${_settings.familiarConnectionId.isNotEmpty ? _settings.familiarConnectionId : 'None'}',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: Colors.grey[500],

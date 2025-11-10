@@ -25,6 +25,25 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> getFamiliarLinked(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/$userId/familiar-linked'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+
+      print('API Error: ${response.statusCode} - ${response.body}');
+      return {'error': 'Error en la respuesta'};
+    } catch (e) {
+      print('Connection Error: $e');
+      return {'error': 'Error de conexión'};
+    }
+  }
+
   Future<Map<String, dynamic>> detectObjects(String imagePath) async {
     try {
       var request = http.MultipartRequest(
