@@ -100,6 +100,36 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
       _isListening = false;
       _messages.clear();
     });
+
+    // Show informative popup for 3 seconds
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: const [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Service stopped successfully',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF239B56),
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    }
   }
 
   void _handleNavigation(int index) {
@@ -202,17 +232,21 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
                   child: Center(
                     child: ElevatedButton.icon(
                       onPressed: _handleStop,
-                      icon: const Icon(Icons.stop, color: Colors.white),
-                      label: const Text(
-                        'STOP',
+                      icon: Icon(
+                        _isListening ? Icons.stop : Icons.stop_circle,
+                        color: _isListening ? Colors.white : Colors.grey[600],
+                      ),
+                      label: Text(
+                        _isListening ? 'STOP' : 'STOPPED',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: _isListening ? Colors.white : Colors.grey[600],
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
+                        backgroundColor:
+                            _isListening ? Colors.red : Colors.grey[300],
                         padding: const EdgeInsets.symmetric(
                           horizontal: 24,
                           vertical: 12,
