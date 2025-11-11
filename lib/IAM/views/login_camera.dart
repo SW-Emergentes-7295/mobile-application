@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:visualguide/IAM/views/login_email_form.dart';
+import 'package:visualguide/IAM/views/signup_email_form.dart';
 
 class LoginCamera extends StatefulWidget {
   const LoginCamera({super.key});
@@ -10,6 +12,7 @@ class LoginCamera extends StatefulWidget {
 class _LoginCameraState extends State<LoginCamera>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool useEmailLogin = false;
 
   @override
   void initState() {
@@ -74,54 +77,80 @@ class _LoginCameraState extends State<LoginCamera>
               ],
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Look directly into the camera to identify yourself',
-              style: TextStyle(fontSize: 16),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 30),
-            SizedBox(
-              height: 180,
-              width: 180,
-              child: Image.asset(
-                  'assets/images/face_scan.png'), // cambia a tu asset
-            ),
-            const SizedBox(height: 30),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF239B56),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                onPressed: () {
-                  // Aquí irá la lógica de reconocimiento facial o login
-                },
-                child: const Text(
-                  'Continue',
-                  style: TextStyle(fontSize: 16, color: Colors.white),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: () {
-                // Navegar a login por correo
-              },
-              child: const Text(
-                'Sign in with my email',
-                style: TextStyle(color: Colors.black),
-              ),
-            ),
+            Expanded(
+                child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 400),
+              transitionBuilder: (child, animation) =>
+                  FadeTransition(opacity: animation, child: child),
+              child: useEmailLogin ? _buildEmailTabs() : _buildCameraContent(),
+            )),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCameraContent() {
+    return Column(
+      key: const ValueKey('cameraView'),
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const Text(
+          'Look directly into the camera to identify yourself',
+          style: TextStyle(fontSize: 16),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 30),
+        SizedBox(
+          height: 180,
+          width: 180,
+          child: Image.asset('assets/images/face_scan.png'),
+        ),
+        const SizedBox(height: 30),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF239B56),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            ),
+            onPressed: () {
+              // Aquí irá la lógica de reconocimiento facial
+            },
+            child: const Text(
+              'Continue',
+              style: TextStyle(fontSize: 16, color: Colors.white),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextButton(
+          onPressed: () {
+            setState(() {
+              useEmailLogin = true;
+            });
+          },
+          child: const Text(
+            'Sign in with my email',
+            style: TextStyle(color: Colors.black),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 📧 Modo 2: Formularios de login/sign up
+  Widget _buildEmailTabs() {
+    return TabBarView(
+      key: const ValueKey('emailView'),
+      controller: _tabController,
+      children: const [
+        LoginEmailForm(),
+        SignupEmailForm(),
+      ],
     );
   }
 }
