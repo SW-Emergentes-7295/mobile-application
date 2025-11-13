@@ -31,14 +31,23 @@ class _LoginCameraState extends State<LoginCamera>
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: const Color(0xFF239B56),
-        elevation: 0,
-        title: const Text(
-          'VisualGuide',
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
+          automaticallyImplyLeading: false,
+          backgroundColor: const Color(0xFF239B56),
+          elevation: 0,
+          title: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.remove_red_eye_outlined,
+                color: Colors.white,
+              ),
+              SizedBox(width: 8),
+              Text(
+                'VisualGuide',
+                style: TextStyle(color: Colors.white),
+              ),
+            ],
+          )),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         child: Column(
@@ -51,7 +60,7 @@ class _LoginCameraState extends State<LoginCamera>
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF239B56)),
-              textAlign: TextAlign.center,
+              textAlign: TextAlign.start,
             ),
             const SizedBox(height: 20),
             const Text(
@@ -116,6 +125,7 @@ class _LoginCameraState extends State<LoginCamera>
                 borderRadius: BorderRadius.circular(30),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              minimumSize: const Size(0, 0),
             ),
             onPressed: () {
               // Aquí irá la lógica de reconocimiento facial

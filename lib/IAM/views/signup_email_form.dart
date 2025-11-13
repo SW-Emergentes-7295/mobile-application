@@ -7,11 +7,6 @@ class SignupEmailForm extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       children: [
-        const Text(
-          'Look directly into the camera to identify yourself',
-          style: TextStyle(fontSize: 15),
-        ),
-        const SizedBox(height: 12),
         TextField(
           decoration: InputDecoration(
             labelText: 'Full name',
@@ -54,7 +49,7 @@ class SignupEmailForm extends StatelessWidget {
           '• At least a number\n'
           '• At least a special character\n'
           '• At least 8 characters',
-          style: TextStyle(fontSize: 13),
+          style: TextStyle(fontSize: 14),
         ),
         const SizedBox(height: 10),
         Row(
@@ -85,10 +80,11 @@ class SignupEmailForm extends StatelessWidget {
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF239B56),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(30),
             ),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            minimumSize: const Size(0, 0),
           ),
           onPressed: () {},
           child: const Text('Continue', style: TextStyle(color: Colors.white)),
