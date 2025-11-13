@@ -113,7 +113,7 @@ class _LoginCameraState extends State<LoginCamera>
         SizedBox(
           height: 180,
           width: 180,
-          child: Image.asset('assets/images/face_scan.png'),
+          child: Image.asset('assets/images/welcome-background.png'),
         ),
         const SizedBox(height: 30),
         SizedBox(
