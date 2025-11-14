@@ -1,20 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:visualguide/HomeConfiguration/views/map_your_home_screen.dart';
 import 'package:visualguide/IAM/views/login_email_form.dart';
 import 'package:visualguide/IAM/views/welcome.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const VisualGuideApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class VisualGuideApp extends StatelessWidget {
+  const VisualGuideApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'VisualGuide',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
+        primaryColor: const Color(0xFF239B56),
+        scaffoldBackgroundColor: Colors.white,
+        // Configuración global de Poppins
+        fontFamily: 'Poppins',
+        textTheme: const TextTheme(
+          displayLarge: TextStyle(fontFamily: 'Poppins'),
+          displayMedium: TextStyle(fontFamily: 'Poppins'),
+          displaySmall: TextStyle(fontFamily: 'Poppins'),
+          headlineLarge: TextStyle(fontFamily: 'Poppins'),
+          headlineMedium: TextStyle(fontFamily: 'Poppins'),
+          headlineSmall: TextStyle(fontFamily: 'Poppins'),
+          titleLarge: TextStyle(fontFamily: 'Poppins'),
+          titleMedium: TextStyle(fontFamily: 'Poppins'),
+          titleSmall: TextStyle(fontFamily: 'Poppins'),
+          bodyLarge: TextStyle(fontFamily: 'Poppins'),
+          bodyMedium: TextStyle(fontFamily: 'Poppins'),
+          bodySmall: TextStyle(fontFamily: 'Poppins'),
+          labelLarge: TextStyle(fontFamily: 'Poppins'),
+          labelMedium: TextStyle(fontFamily: 'Poppins'),
+          labelSmall: TextStyle(fontFamily: 'Poppins'),
+        ),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF239B56),
+          primary: const Color(0xFF239B56),
         // This is the theme of your application.
         //
         // TRY THIS: Try running your application with "flutter run". You'll see
@@ -121,11 +146,7 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      home: const MapYourHomeScreen(),
     );
   }
 }
