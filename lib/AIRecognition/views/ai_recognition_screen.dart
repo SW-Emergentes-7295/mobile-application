@@ -95,13 +95,24 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
   }
 
   void _handleStop() async {
-    await _speechService.stop();
+    await _speechService.stop(); // or stopListening() depending on your service
     setState(() {
       _isListening = false;
-      _messages.clear();
+
+      // finalize the in-progress text as a message (if any)
+      if (_messageInProcess.isNotEmpty) {
+        _messages.add(TranscriptMessage(
+          speaker: 'User',
+          text: _messageInProcess,
+          timestamp: DateTime.now(),
+        ));
+        _messageInProcess = '';
+      }
+
+      // Do NOT clear messages; popup is only informative
+      // _messages.clear();
     });
 
-    // Show informative popup for 3 seconds
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -112,10 +123,7 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
               Expanded(
                 child: Text(
                   'Service stopped successfully',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
               ),
             ],
@@ -265,6 +273,7 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
             height: panelHeight,
             child: TranscriptPanel(
               messages: _messages,
+              inProgressText: _messageInProcess, // <- show live text
             ),
           ),
         ],

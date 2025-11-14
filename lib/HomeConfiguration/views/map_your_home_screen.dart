@@ -1,11 +1,11 @@
-import 'dart:ffi';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
-
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'dart:async';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
+import 'package:flutter_tts/flutter_tts.dart';
+import '../../shared/widgets/bottom_nav_bar.dart';
+import '../../shared/widgets/top_nav_bar.dart';
 
 class MapYourHomeScreen extends StatefulWidget {
   const MapYourHomeScreen({Key? key}) : super(key: key);
@@ -18,26 +18,45 @@ class _MapYourHomeScreenState extends State<MapYourHomeScreen> {
   CameraController? _cameraController;
   List<CameraDescription>? cameras;
   bool _isCameraInitialized = false;
-  String _dynamicText = 'Take an image of a room';
+  String _dynamicText =
+      'Some images of your home, will help us to guide you in your day to day life.';
 
-  //Pasos del mapeo
-  int mapping_phase = 0; //2 en la sala, 2 en el cuarto, 1 en la cocina, 1 del comedor, 1 del baño
+  // Text to Speech
+  FlutterTts flutterTts = FlutterTts();
+  bool _isSpeaking = false;
 
-  //Variables para el room
-  String _roomName = '';
+  // Pasos del mapeo
+  int mappingPhase = 0;
+
+  // Variables para el room
   String _roomImagePath = '';
 
   // Control de captura
   bool _isCapturing = false;
   bool _isMapping = false;
 
-  // Estados de la aplicación
-  bool _isListening = false;
-
   @override
   void initState() {
     super.initState();
     _initializeCamera();
+    _initializeTts();
+  }
+
+  Future<void> _initializeTts() async {
+    await flutterTts.setLanguage("en-US");
+    await flutterTts.setSpeechRate(0.5);
+    await flutterTts.setVolume(1.0);
+    await flutterTts.setPitch(1.0);
+  }
+
+  Future<void> _speak(String text) async {
+    setState(() {
+      _isSpeaking = true;
+    });
+    await flutterTts.speak(text);
+    setState(() {
+      _isSpeaking = false;
+    });
   }
 
   Future<void> _initializeCamera() async {
@@ -63,9 +82,18 @@ class _MapYourHomeScreenState extends State<MapYourHomeScreen> {
     }
   }
 
+  Future<void> _releaseCamera() async {
+    try {
+      await _cameraController?.dispose();
+    } catch (_) {}
+    _cameraController = null;
+    _isCameraInitialized = false;
+  }
+
   @override
   void dispose() {
-    _cameraController?.dispose();
+    _releaseCamera();
+    flutterTts.stop();
     super.dispose();
   }
 
@@ -75,22 +103,26 @@ class _MapYourHomeScreenState extends State<MapYourHomeScreen> {
     });
   }
 
-  Future<void> start_mapping() async{
+  Future<void> _startMapping() async {
     _isMapping = true;
     debugPrint("Deleting previous mapping...");
     final Directory baseDir = await getApplicationDocumentsDirectory();
-    final Directory destinyDir = Directory(p.join(baseDir.path, "mapping_images"));
+    final Directory destinyDir =
+        Directory(p.join(baseDir.path, "mapping_images"));
     debugPrint("Destiny dir: $destinyDir");
     if (await destinyDir.exists()) {
       await destinyDir.delete(recursive: true);
     }
-    _updateText("Mapping started. Take a photo of the living room.");
-    mapping_phase = 1;
+    final text = "Mapping started. Take a photo of the living room.";
+    _updateText(text);
+    await _speak(text);
+    mappingPhase = 1;
   }
 
-  Future<void> save_photo (String path, String phase_name) async{
+  Future<void> _savePhoto(String path, String phaseName) async {
     final Directory baseDir = await getApplicationDocumentsDirectory();
-    final Directory destinyDir = Directory(p.join(baseDir.path, "mapping_images", phase_name));
+    final Directory destinyDir =
+        Directory(p.join(baseDir.path, "mapping_images", phaseName));
     if (!await destinyDir.exists()) {
       await destinyDir.create(recursive: true);
     }
@@ -101,43 +133,86 @@ class _MapYourHomeScreenState extends State<MapYourHomeScreen> {
     debugPrint("Photo in $path saved in $newPath");
   }
 
-  Future<void> save_data() async{
-    //TODO: Añadir el user id dinámicamente
+  Future<void> _saveData() async {
     final Directory baseDir = await getApplicationDocumentsDirectory();
-    final Directory mappingDir = Directory(p.join(baseDir.path, "mapping_images"));
-    final Directory destinyDir = Directory(p.join(baseDir.path, "users_mapping", "user_001"));
+    final Directory mappingDir =
+        Directory(p.join(baseDir.path, "mapping_images"));
+    final Directory destinyDir =
+        Directory(p.join(baseDir.path, "users_mapping", "user_001"));
     if (await destinyDir.exists()) {
       await destinyDir.delete(recursive: true);
     }
     await destinyDir.create(recursive: true);
-    final String newPath = p.join(destinyDir.path, "full_mapping_data");;
+    final String newPath = p.join(destinyDir.path, "full_mapping_data");
     if (await mappingDir.exists()) {
       await mappingDir.rename(newPath);
     }
     debugPrint("Saving full data in local archives");
   }
 
-  // Capturar foto
+  // Show loading animation and then redirect to /aiRecognition
+  Future<void> _showMappingProgressAndGo() async {
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => WillPopScope(
+        onWillPop: () async => false,
+        child: Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                SizedBox(height: 8),
+                CircularProgressIndicator(color: Color(0xFF4CAF50)),
+                SizedBox(height: 16),
+                Text(
+                  'Mapping your home...',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Brief delay just for UX
+    await Future.delayed(const Duration(seconds: 2));
+
+    // Important: release camera before navigating
+    await _releaseCamera();
+
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop(); // close dialog
+
+    if (!mounted) return;
+    Navigator.of(context).pushReplacementNamed('/aiRecognition');
+  }
+
   Future<void> _capturePhoto() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       _updateText('Camera is not ready');
       return;
     }
 
-    if(!_isMapping){
-      start_mapping();
+    if (!_isMapping) {
+      _startMapping();
       return;
-    } else{
+    } else {
       if (_isCapturing) return;
       setState(() {
         _isCapturing = true;
       });
       try {
         final XFile photo = await _cameraController!.takePicture();
-        // Aquí puedes guardar la foto o procesarla
         debugPrint('Photo saved: ${photo.path}');
         _roomImagePath = photo.path;
-        // Pausa de medio segundo
         await Future.delayed(const Duration(milliseconds: 500));
       } catch (e) {
         debugPrint('Error capturing photo: $e');
@@ -147,136 +222,81 @@ class _MapYourHomeScreenState extends State<MapYourHomeScreen> {
           _isCapturing = false;
         });
       }
-      switch (mapping_phase){
+
+      String nextText = '';
+      switch (mappingPhase) {
         case 1:
-          save_photo(_roomImagePath, "living_room");
-          _updateText("Now take a another photo of the living room");
-          mapping_phase = 2;
+          _savePhoto(_roomImagePath, "living_room");
+          nextText = "Now take another photo of the living room";
+          mappingPhase = 2;
+          break;
         case 2:
-          save_photo(_roomImagePath, "living_room");
-          _updateText("Now take a photo of your bedroom");
-          mapping_phase = 3;
+          _savePhoto(_roomImagePath, "living_room");
+          nextText = "Now take a photo of your bedroom";
+          mappingPhase = 3;
+          break;
         case 3:
-          save_photo(_roomImagePath, "bedroom");
-          _updateText("Now take another photo of your bedroom");
-          mapping_phase = 4;
+          _savePhoto(_roomImagePath, "bedroom");
+          nextText = "Now take another photo of your bedroom";
+          mappingPhase = 4;
+          break;
         case 4:
-          save_photo(_roomImagePath, "bedroom");
-          _updateText("Now take a photo of your kitchen");
-          mapping_phase = 5;
+          _savePhoto(_roomImagePath, "bedroom");
+          nextText = "Now take a photo of your kitchen";
+          mappingPhase = 5;
+          break;
         case 5:
-          save_photo(_roomImagePath, "kitchen");
-          _updateText("Now take a photo of your dinning room");
-          mapping_phase = 6;
+          _savePhoto(_roomImagePath, "kitchen");
+          nextText = "Now take a photo of your dining room";
+          mappingPhase = 6;
+          break;
         case 6:
-          save_photo(_roomImagePath, "dinning_room");
-          _updateText("Now take a photo of your bathroom");
-          mapping_phase = 7;
+          _savePhoto(_roomImagePath, "dining_room");
+          nextText = "Now take a photo of your bathroom";
+          mappingPhase = 7;
+          break;
         case 7:
-          save_photo(_roomImagePath, "bathroom");
-          _updateText("Mapping ended. Touch camera to start again.");
-          mapping_phase = 7;
+          _savePhoto(_roomImagePath, "bathroom");
+          // Finish mapping: persist data then show animation and redirect
+          mappingPhase = 0;
           _isMapping = false;
-          save_data();
+          await _saveData();
+
+          // Update the visible hint and optionally speak it
+          nextText = "Mapping your home...";
+          _updateText(nextText);
+          await _showMappingProgressAndGo();
+          return; // stop further processing
       }
+      _updateText(nextText);
+      await _speak(nextText);
       return;
     }
   }
 
-  // Manejar comando de voz (simulado)
-  void _handleVoiceCommand() {
-    setState(() {
-      _isListening = !_isListening;
-    });
-    if (_isListening) {
-      _updateText('Listening... Say "start mapping" or "command to enter another view"');
-      // Simular reconocimiento de voz después de 2 segundos
-      Future.delayed(const Duration(seconds: 2), () {
-        if (_isListening) {
-          // Recibe comando de voz
-          _processVoiceCommand('comando de prueba');
-        }
-      });
-    } else {
-      _updateText('Voice command cancelled');
-    }
+  void _speakInstructions() {
+    _speak(_dynamicText);
   }
 
-  // Procesar comando de voz
-  void _processVoiceCommand(String command) {
-    setState(() {
-      _isListening = false;
-    });
-    command = command.toLowerCase();
-    debugPrint('Voice command received: $command');
-    if (command.contains('take photo') || command.contains('capture')) {
-      _capturePhoto();
-    } else if (command.contains('home')) {
-      _goToHome();
-    } else {
-      _updateText('Command not recognized. Try: "start mapping" or "take photo"');
-    }
-  }
-
-  // Ir a Home
-  void _goToHome() {
-    debugPrint('Navigating to Home Screen');
-  }
-
-  // Abrir configuración
   void _openSettings() {
-    debugPrint('Navigating to setting');
+    debugPrint('Navigating to settings');
+    // Navegar a configuración
   }
 
-  //-----------------------------------------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+
+      // Replace the custom gradient header with the shared TopNavBar
+      appBar: const TopNavBar(),
+
       body: SafeArea(
         child: Column(
           children: [
-            // AppBar personalizado
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.remove_red_eye_outlined,
-                      color: Color(0xFF4CAF50),
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'VisualGuide',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                ],
-              ),
-            ),
+            // Removed the custom top container header here
 
-//Contenido principal ----------------------------------------------------------------------
+            // Main content
             Expanded(
               child: SingleChildScrollView(
                 child: Padding(
@@ -285,7 +305,7 @@ class _MapYourHomeScreenState extends State<MapYourHomeScreen> {
                     children: [
                       const SizedBox(height: 20),
 
-                      // Título
+                      // Title
                       const Text(
                         'Map your\nhome',
                         textAlign: TextAlign.center,
@@ -293,36 +313,37 @@ class _MapYourHomeScreenState extends State<MapYourHomeScreen> {
                           fontSize: 48,
                           fontWeight: FontWeight.bold,
                           height: 1.1,
+                          color: Colors.black87,
                         ),
                       ),
 
                       const SizedBox(height: 16),
 
-                      // Texto dinámico
+                      // Dynamic text
                       Text(
                         _dynamicText,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.black87,
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Colors.grey[600],
                           height: 1.4,
                         ),
                       ),
 
                       const SizedBox(height: 32),
 
-                      // Vista de cámara----------------------------------------------------------------
+                      // Camera view (tap to capture)
                       GestureDetector(
                         onTap: _capturePhoto,
                         child: Container(
-                          height: 400,
+                          height: 320,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(24),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black.withOpacity(0.15),
                                 blurRadius: 20,
-                                offset: const Offset(0, 4),
+                                offset: const Offset(0, 8),
                               ),
                             ],
                           ),
@@ -330,24 +351,24 @@ class _MapYourHomeScreenState extends State<MapYourHomeScreen> {
                             children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(24),
-                                child: _isCameraInitialized && _cameraController != null
+                                child: _isCameraInitialized &&
+                                        _cameraController != null
                                     ? CameraPreview(_cameraController!)
                                     : Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[300],
-                                    borderRadius: BorderRadius.circular(24),
-                                  ),
-                                  child: Center(
-                                    child: Icon(
-                                      Icons.camera_alt,
-                                      size: 100,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey[200],
+                                          borderRadius:
+                                              BorderRadius.circular(24),
+                                        ),
+                                        child: Center(
+                                          child: Icon(
+                                            Icons.camera_alt_rounded,
+                                            size: 120,
+                                            color: Colors.grey[400],
+                                          ),
+                                        ),
+                                      ),
                               ),
-
-                              // Indicador de captura
                               if (_isCapturing)
                                 Container(
                                   decoration: BoxDecoration(
@@ -355,55 +376,32 @@ class _MapYourHomeScreenState extends State<MapYourHomeScreen> {
                                     borderRadius: BorderRadius.circular(24),
                                   ),
                                   child: const Center(
-                                    child: CircularProgressIndicator(
-                                      color: Color(0xFF4CAF50),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        CircularProgressIndicator(
+                                          color: Color(0xFF4CAF50),
+                                          strokeWidth: 3,
+                                        ),
+                                        SizedBox(height: 16),
+                                        Text(
+                                          'Capturing...',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF4CAF50),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
-
-                              // Botón de captura manual
-                              /*Positioned(
-                                bottom: 16,
-                                right: 16,
-                                child: FloatingActionButton(
-                                  onPressed: _capturePhoto,
-                                  backgroundColor: Colors.white,
-                                  child: const Icon(
-                                    Icons.camera,
-                                    color: Color(0xFF4CAF50),
-                                  ),
-                                ),
-                              ),*/
                             ],
                           ),
                         ),
                       ),
 
-                      const SizedBox(height: 40),
-
-                      // Botones de navegación-----------------------------------------------
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildNavButton(
-                            icon: Icons.home,
-                            label: 'HOME',
-                            onTap: _goToHome,
-                          ),
-                          _buildNavButton(
-                            icon: _isListening ? Icons.mic : Icons.mic_none,
-                            label: 'SPEAK',
-                            onTap: _handleVoiceCommand,
-                            isLarge: true,
-                            isActive: _isListening,
-                          ),
-                          _buildNavButton(
-                            icon: Icons.settings,
-                            label: 'SETTINGS',
-                            onTap: _openSettings,
-                          ),
-                        ],
-                      ),
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
@@ -411,6 +409,14 @@ class _MapYourHomeScreenState extends State<MapYourHomeScreen> {
             ),
           ],
         ),
+      ),
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: 2,
+        onTap: (index) {
+          if (index != 2) {
+            Navigator.pop(context);
+          }
+        },
       ),
     );
   }
@@ -422,15 +428,18 @@ class _MapYourHomeScreenState extends State<MapYourHomeScreen> {
     bool isLarge = false,
     bool isActive = false,
   }) {
-    final size = isLarge ? 80.0 : 60.0;
+    final size = isLarge ? 80.0 : 64.0;
     final iconSize = isLarge ? 36.0 : 28.0;
 
     return Column(
       children: [
         Material(
-          color: isActive ? Colors.red : const Color(0xFF4CAF50),
+          color: isActive ? const Color(0xFFE53935) : const Color(0xFF4CAF50),
           borderRadius: BorderRadius.circular(size / 2),
-          elevation: 8,
+          elevation: isActive ? 12 : 8,
+          shadowColor: isActive
+              ? const Color(0xFFE53935).withOpacity(0.4)
+              : const Color(0xFF4CAF50).withOpacity(0.4),
           child: InkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(size / 2),
@@ -442,30 +451,31 @@ class _MapYourHomeScreenState extends State<MapYourHomeScreen> {
               ),
               child: isActive
                   ? Stack(
-                alignment: Alignment.center,
-                children: [
-                  Icon(icon, color: Colors.white, size: iconSize),
-                  SizedBox(
-                    width: size * 0.8,
-                    height: size * 0.8,
-                    child: const CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  ),
-                ],
-              )
+                      alignment: Alignment.center,
+                      children: [
+                        Icon(icon, color: Colors.white, size: iconSize),
+                        SizedBox(
+                          width: size * 0.85,
+                          height: size * 0.85,
+                          child: const CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        ),
+                      ],
+                    )
                   : Icon(icon, color: Colors.white, size: iconSize),
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.bold,
             letterSpacing: 0.5,
+            color: Colors.grey[800],
           ),
         ),
       ],

@@ -1,13 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:visualguide/shared/infrastructure/services/base_service.dart';
 
-class ApiService {
-  final String baseUrl = 'http://192.168.1.54:5000/api/v1';
-
+class ApiService extends BaseService {
   Future<String> sendVoiceCommand(String command) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/ai-recognition/voice-command'),
+        Uri.parse('${BaseService.baseUrl}/ai-recognition/voice-command'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'command': command}),
       );
@@ -28,7 +27,7 @@ class ApiService {
   Future<Map<String, dynamic>> getFamiliarLinked(String userId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/users/$userId/familiar-linked'),
+        Uri.parse('${BaseService.baseUrl}/users/$userId/familiar-linked'),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -48,7 +47,7 @@ class ApiService {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('$baseUrl/detect-objects'),
+        Uri.parse('${BaseService.baseUrl}/detect-objects'),
       );
       request.files.add(await http.MultipartFile.fromPath('image', imagePath));
 

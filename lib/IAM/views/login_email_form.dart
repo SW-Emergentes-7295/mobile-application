@@ -107,7 +107,7 @@ class _LoginEmailForm extends State<LoginEmailForm> {
                 ),
                 onPressed: () {
                   Navigator.pop(context);
-                  Navigator.pushReplacementNamed(context, '/welcome');
+                  Navigator.pushReplacementNamed(context, '/mapYourHome');
                 },
                 child: const Text("Continuar",
                     style: TextStyle(color: Colors.white)),

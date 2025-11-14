@@ -111,20 +111,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _linkFamiliarConnection() {
-    // TODO: Implementar lógica de vinculación
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Vincular conexión familiar'),
-        content: const Text('Funcionalidad en desarrollo'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+    // Navegar a la pantalla de vinculación
+    Navigator.pushNamed(context, '/family_control_panel').then((_) {
+      // Recargar la conexión familiar vinculada al volver
+      _getLinkedFamiliarConnection();
+    });
   }
 
   @override

@@ -1,13 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:visualguide/shared/infrastructure/services/base_service.dart';
 
-class AuthService {
-  // 🔧 URL base de tu API Flask
-  static const String baseUrl = "http://127.0.0.1:8000/api/v1/iam";
-  // ⚠️ Cambia 127.0.0.1 por la IP local si pruebas en un emulador o dispositivo físico:
-  // Android emulator → "http://10.0.2.2:8000/api/v1/iam"
-  // Dispositivo físico → tu IP local, ej: "http://192.168.1.5:8000/api/v1/iam"
-
+class AuthService extends BaseService {
   /// 🧩 Registro de usuario
   static Future<Map<String, dynamic>> registerUser({
     required String name,
@@ -15,7 +10,7 @@ class AuthService {
     required String phone,
     required String password,
   }) async {
-    final url = Uri.parse('$baseUrl/users');
+    final url = Uri.parse('${BaseService.baseUrl}/iam/users');
 
     final body = jsonEncode({
       'name': name,
@@ -42,7 +37,7 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final url = Uri.parse('$baseUrl/login');
+    final url = Uri.parse('${BaseService.baseUrl}/iam/login');
 
     final body = jsonEncode({
       'email': email,
