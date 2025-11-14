@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:visualguide/AIRecognition/views/ai_recognition_screen.dart';
 import 'package:visualguide/HomeConfiguration/views/map_your_home_screen.dart';
 import 'package:visualguide/IAM/views/login_email_form.dart';
 import 'package:visualguide/IAM/views/welcome.dart';
@@ -40,6 +41,9 @@ class VisualGuideApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF239B56),
           primary: const Color(0xFF239B56),
+        ),
+      ),
+      home: const AIRecognitionScreen(),
         // This is the theme of your application.
         //
         // TRY THIS: Try running your application with "flutter run". You'll see
