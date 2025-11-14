@@ -49,5 +49,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+     <key>NSCameraUsageDescription</key>
+     <string>Necesitamos acceso a la cámara para mapear tu hogar</string>
 </dict>
 </plist>
