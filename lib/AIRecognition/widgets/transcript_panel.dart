@@ -3,12 +3,14 @@ import 'package:visualguide/AIRecognition/models/transcript_message.dart';
 
 class TranscriptPanel extends StatefulWidget {
   final List<TranscriptMessage> messages;
-  final String inProgressText; // <- add this
+  final String inProgressText;
+  final VoidCallback? onStop;
 
   const TranscriptPanel({
     Key? key,
     required this.messages,
     this.inProgressText = '',
+    this.onStop,
   }) : super(key: key);
 
   @override
@@ -49,20 +51,25 @@ class _TranscriptPanelState extends State<TranscriptPanel> {
         widget.messages.length + (widget.inProgressText.isNotEmpty ? 1 : 0);
 
     return Container(
-      color: Colors.white,
+      height: 180, // fixed panel height; adjust as needed
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black12, blurRadius: 6, offset: Offset(0, -2)),
+        ],
+      ),
       child: Column(
         children: [
-          // Header (keep your original UI here)
+          // Header with optional STOP
           Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: Color(0xFF239B56),
-            ),
-            child: const Row(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: const Color(0xFF239B56),
+            child: Row(
               children: [
-                Icon(Icons.chat_bubble_outline, color: Colors.white),
-                SizedBox(width: 8),
-                Text(
+                const Icon(Icons.chat_bubble_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                const Text(
                   'Conversation',
                   style: TextStyle(
                     color: Colors.white,
@@ -70,103 +77,112 @@ class _TranscriptPanelState extends State<TranscriptPanel> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                const Spacer(),
+                if (widget.onStop != null)
+                  TextButton.icon(
+                    onPressed: widget.onStop,
+                    icon: const Icon(Icons.stop, color: Colors.white, size: 18),
+                    label: const Text(
+                      'STOP',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                    ),
+                  ),
               ],
             ),
           ),
+          // Scrollable list
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               itemCount: totalItems,
               itemBuilder: (context, index) {
-                final showingProgressSlot = index == widget.messages.length &&
+                final showingProgress = index == widget.messages.length &&
                     widget.inProgressText.isNotEmpty;
 
-                if (showingProgressSlot) {
-                  // Live transcription bubble
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF239B56),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.person,
-                              size: 20, color: Colors.white),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8F5E9),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              widget.inProgressText,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                if (showingProgress) {
+                  return _bubble(
+                    speaker: 'User',
+                    text: widget.inProgressText,
+                    isUser: true,
+                    isLive: true,
                   );
                 }
 
-                final message = widget.messages[index];
-                final isUser = message.speaker == 'User';
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: isUser
-                              ? const Color(0xFF239B56)
-                              : Colors.grey[300],
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isUser ? Icons.person : Icons.assistant,
-                          size: 20,
-                          color: isUser ? Colors.white : Colors.grey[700],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              message.speaker,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              message.text,
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                final msg = widget.messages[index];
+                return _bubble(
+                  speaker: msg.speaker,
+                  text: msg.text,
+                  isUser: msg.speaker.toLowerCase() == 'user',
                 );
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bubble({
+    required String speaker,
+    required String text,
+    required bool isUser,
+    bool isLive = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: isUser ? const Color(0xFF239B56) : Colors.grey[300],
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isUser ? Icons.person : Icons.assistant,
+              size: 18,
+              color: isUser ? Colors.white : Colors.grey[700],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isLive ? const Color(0xFFE8F5E9) : Colors.grey[100],
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    speaker,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    text,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontStyle: isLive ? FontStyle.italic : FontStyle.normal,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

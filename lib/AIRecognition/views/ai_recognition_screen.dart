@@ -8,6 +8,12 @@ import 'package:visualguide/AIRecognition/models/transcript_message.dart';
 import 'package:visualguide/AIRecognition/services/camera_service.dart';
 import 'package:visualguide/AIRecognition/services/speech_service.dart';
 import 'package:visualguide/AIRecognition/services/api_service.dart';
+import 'package:visualguide/AIRecognition/services/spatial_service.dart';
+import 'package:visualguide/AIRecognition/models/spatial_data.dart';
+import 'package:visualguide/AIRecognition/models/detected_object.dart';
+import 'package:visualguide/AIRecognition/widgets/spatial_overlay.dart';
+import 'package:visualguide/AIRecognition/models/navigation_instruction.dart';
+import 'dart:async';
 
 class AIRecognitionScreen extends StatefulWidget {
   const AIRecognitionScreen({Key? key}) : super(key: key);
@@ -20,68 +26,240 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
   final CameraService _cameraService = CameraService();
   final SpeechService _speechService = SpeechService();
   final ApiService _apiService = ApiService();
+  final SpatialService _spatialService = SpatialService();
 
   int _currentNavIndex = 1;
   bool _isListening = false;
   List<TranscriptMessage> _messages = [];
-  String _messageInProcess = "";
+  String _messageInProcess = ''; // show live transcription
+
+  // Datos espaciales
+  SpatialData? _currentSpatialData;
+  List<DetectedObject> _detectedObjects = [];
+  NavigationInstruction? _currentInstruction;
+  String? _targetRoom;
+
+  // Timer para detección continua
+  Timer? _detectionTimer;
+  bool _isProcessing = false;
 
   @override
   void initState() {
     super.initState();
     _initializeServices();
-    // Mensaje de ejemplo inicial
     _messages = [
+      TranscriptMessage(
+        speaker: 'User',
+        text: 'I want to go to the kitchen and look for a spoon to eat.',
+        timestamp: DateTime.now(),
+      ),
       TranscriptMessage(
         speaker: 'Assistant',
         text:
-            'Hola! Estoy listo para asistirte. Presiona el botón de micrófono y comienza a hablar.',
+            'Perfect Arian! Walk straight ahead, turn left and you will find the door, enter and on your right side will be the spoons.',
+        timestamp: DateTime.now(),
+      ),
+      TranscriptMessage(
+        speaker: 'User',
+        text: 'Thank you very much!',
         timestamp: DateTime.now(),
       ),
     ];
-
-    _messageInProcess = "";
   }
 
   Future<void> _initializeServices() async {
     await _cameraService.initialize();
     await _speechService.initialize();
+    await _spatialService.initialize();
+
+    // Iniciar detección continua cada 2 segundos
+    _startContinuousDetection();
+
     setState(() {});
   }
 
-  void _toggleListening() async {
+  void _startContinuousDetection() {
+    _detectionTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      if (!_isProcessing && _cameraService.controller != null) {
+        _performObjectDetection();
+      }
+    });
+  }
+
+  Future<void> _performObjectDetection() async {
+    if (_isProcessing) return;
+
     setState(() {
-      _isListening = !_isListening;
+      _isProcessing = true;
     });
 
-    print('isListening: $_isListening');
-    if (_isListening) {
-      await _speechService.startListening((recognizedWords) {
-        if (recognizedWords.isNotEmpty) {
+    try {
+      // Capturar frame de la cámara
+      final imagePath = await _cameraService.takePicture();
+
+      if (imagePath != null) {
+        // Obtener dimensiones de la imagen
+        final controller = _cameraService.controller!;
+        final imageWidth = controller.value.previewSize!.width;
+        final imageHeight = controller.value.previewSize!.height;
+
+        // Detectar objetos con la API
+        final detections = await _apiService.detectObjectsWithSpatialData(
+          imagePath: imagePath,
+          imageWidth: imageWidth,
+          imageHeight: imageHeight,
+        );
+
+        if (detections.isNotEmpty) {
+          // Procesar detecciones con el servicio espacial
+          final spatialData = await _spatialService.processDetections(
+            detections: detections
+                .map((obj) => {
+                      'label': obj.label,
+                      'confidence': obj.confidence,
+                      'bbox': [
+                        obj.boundingBox.x * imageWidth,
+                        obj.boundingBox.y * imageHeight,
+                        obj.boundingBox.width * imageWidth,
+                        obj.boundingBox.height * imageHeight,
+                      ],
+                    })
+                .toList(),
+            imageHeight: imageHeight,
+            imageWidth: imageWidth,
+          );
+
+          // Actualizar ubicación actual
+          _spatialService.updateCurrentLocation(detections);
+
           setState(() {
-            _messageInProcess = recognizedWords;
+            _currentSpatialData = spatialData;
+            _detectedObjects = detections;
           });
 
-          print('Recognized Words: $recognizedWords');
-        }
-      });
-    } else {
-      await _speechService.stopListening();
+          // Generar alertas de proximidad
+          final alerts = _spatialService.generateProximityAlerts(spatialData);
+          for (var alert in alerts) {
+            await _speechService.speak(alert);
+          }
 
+          // Si hay un objetivo, generar instrucciones
+          if (_targetRoom != null) {
+            _generateNavigationInstructions();
+          }
+        }
+      }
+    } catch (e) {
+      print('Error en detección: $e');
+    } finally {
+      setState(() {
+        _isProcessing = false;
+      });
+    }
+  }
+
+  Future<void> _generateNavigationInstructions() async {
+    if (_currentSpatialData == null || _targetRoom == null) return;
+
+    // Generar instrucción localmente
+    final localInstruction = _spatialService.generateNavigationInstruction(
+      targetRoom: _targetRoom!,
+      spatialData: _currentSpatialData!,
+    );
+
+    // Intentar obtener instrucción del backend (más precisa)
+    final apiInstruction = await _apiService.getNavigationInstructions(
+      currentLocation: _spatialService.currentLocation,
+      targetRoom: _targetRoom!,
+      nearbyObjects: _detectedObjects,
+    );
+
+    setState(() {
+      _currentInstruction = apiInstruction ?? localInstruction;
+    });
+
+    // Reproducir instrucción si es de alta prioridad
+    if (_currentInstruction!.priority == 'high') {
+      await _speechService.speak(_currentInstruction!.getFullInstruction());
+
+      // Agregar a transcripción
       setState(() {
         _messages.add(TranscriptMessage(
-          speaker: 'User',
-          text: _messageInProcess,
+          speaker: 'Assistant',
+          text: _currentInstruction!.getFullInstruction(),
           timestamp: DateTime.now(),
         ));
       });
+    }
+  }
 
-      _processCommand(_messageInProcess);
-      _messageInProcess = "";
+  void _toggleListening() async {
+    setState(() => _isListening = !_isListening);
+
+    if (_isListening) {
+      _messageInProcess = '';
+      await _speechService.startListening(
+        (recognizedWords) {
+          // interim (live) transcription
+          if (recognizedWords.isNotEmpty) {
+            setState(() {
+              _messageInProcess = recognizedWords;
+            });
+          }
+        },
+        onFinalResult: (finalText) {
+          // final recognized text
+          if (finalText.isNotEmpty) {
+            setState(() {
+              _messages.add(TranscriptMessage(
+                speaker: 'User',
+                text: finalText,
+                timestamp: DateTime.now(),
+              ));
+              _messageInProcess = '';
+            });
+            _processCommand(finalText);
+          }
+        },
+      );
+    } else {
+      await _speechService.stopListening();
+      // finalize mid-utterance if any
+      if (_messageInProcess.isNotEmpty) {
+        setState(() {
+          _messages.add(TranscriptMessage(
+            speaker: 'User',
+            text: _messageInProcess,
+            timestamp: DateTime.now(),
+          ));
+          _messageInProcess = '';
+        });
+      }
     }
   }
 
   Future<void> _processCommand(String command) async {
+    // Detectar si el usuario quiere ir a alguna habitación
+    final lowerCommand = command.toLowerCase();
+
+    if (lowerCommand.contains('cocina') || lowerCommand.contains('kitchen')) {
+      _targetRoom = 'kitchen';
+      await _speechService.speak('Entendido, te guiaré a la cocina');
+    } else if (lowerCommand.contains('dormitorio') ||
+        lowerCommand.contains('bedroom')) {
+      _targetRoom = 'bedroom';
+      await _speechService.speak('Entendido, te guiaré al dormitorio');
+    } else if (lowerCommand.contains('baño') ||
+        lowerCommand.contains('bathroom')) {
+      _targetRoom = 'bathroom';
+      await _speechService.speak('Entendido, te guiaré al baño');
+    } else if (lowerCommand.contains('sala') ||
+        lowerCommand.contains('living')) {
+      _targetRoom = 'living_room';
+      await _speechService.speak('Entendido, te guiaré a la sala');
+    }
+
+    // Procesar comando con la API
     final response = await _apiService.sendVoiceCommand(command);
     setState(() {
       _messages.add(TranscriptMessage(
@@ -90,16 +268,16 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
         timestamp: DateTime.now(),
       ));
     });
-
     await _speechService.speak(response);
   }
 
   void _handleStop() async {
-    await _speechService.stop(); // or stopListening() depending on your service
+    await _speechService.stopListening();
+    _targetRoom = null;
     setState(() {
       _isListening = false;
-
-      // finalize the in-progress text as a message (if any)
+      _currentInstruction = null;
+      // finalize in-progress
       if (_messageInProcess.isNotEmpty) {
         _messages.add(TranscriptMessage(
           speaker: 'User',
@@ -108,9 +286,6 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
         ));
         _messageInProcess = '';
       }
-
-      // Do NOT clear messages; popup is only informative
-      // _messages.clear();
     });
 
     if (mounted) {
@@ -120,20 +295,14 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
             children: const [
               Icon(Icons.check_circle, color: Colors.white),
               SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Service stopped successfully',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ),
+              Expanded(child: Text('Service stopped successfully')),
             ],
           ),
           backgroundColor: const Color(0xFF239B56),
           duration: const Duration(seconds: 3),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           margin: const EdgeInsets.all(16),
         ),
       );
@@ -146,7 +315,6 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
     });
 
     if (index == 2) {
-      // Navegar a configuración
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const SettingsScreen()),
@@ -156,134 +324,79 @@ class _AIRecognitionScreenState extends State<AIRecognitionScreen> {
 
   @override
   void dispose() {
+    _detectionTimer?.cancel();
     _cameraService.dispose();
     _speechService.stop();
+    _spatialService.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final totalHeight = media.size.height;
-    final statusBar = media.padding.top;
-    final bottomInset = media.padding.bottom;
-    final appBarHeight = const TopNavBar().preferredSize.height;
-
-    // Adjust if your custom BottomNavBar uses a different height.
-    const bottomBarHeight = kBottomNavigationBarHeight;
-
-    // Height available for the body (camera + transcript)
-    final bodyHeight =
-        totalHeight - statusBar - appBarHeight - bottomBarHeight - bottomInset;
-
-    // Target: transcript + bottom bar ≈ 30% of total screen
-    final desiredPanel = (totalHeight * 0.30) - bottomBarHeight - bottomInset;
-
-    // Clamp to avoid extremes
-    final panelHeight = desiredPanel.clamp(120.0, bodyHeight - 120.0);
-    final cameraHeight = bodyHeight - panelHeight;
-
     return Scaffold(
       appBar: const TopNavBar(),
-      body: Column(
+      body: Stack(
         children: [
-          SizedBox(
-            height: cameraHeight,
-            child: Stack(
-              children: [
-                if (_cameraService.controller != null &&
-                    _cameraService.controller!.value.isInitialized)
-                  SizedBox.expand(
-                    child: CameraPreview(_cameraService.controller!),
-                  )
-                else
-                  Container(
-                    color: Colors.black,
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF239B56),
-                      ),
+          // Camera preview
+          if (_cameraService.controller != null &&
+              _cameraService.controller!.value.isInitialized)
+            SizedBox.expand(child: CameraPreview(_cameraService.controller!))
+          else
+            Container(
+              color: Colors.black,
+              child: const Center(
+                child: CircularProgressIndicator(color: Color(0xFF239B56)),
+              ),
+            ),
+
+          // Overlay
+          if (_detectedObjects.isNotEmpty)
+            SpatialOverlay(
+              detectedObjects: _detectedObjects,
+              currentLocation: _spatialService.currentLocation,
+              targetRoom: _targetRoom,
+            ),
+
+          // Mic button centered
+          Center(
+            child: GestureDetector(
+              onTap: _toggleListening,
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: _isListening
+                      ? const Color(0xFF2ECC71)
+                      : Colors.white.withOpacity(0.3),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.3),
+                      blurRadius: 20,
+                      spreadRadius: 5,
                     ),
-                  ),
-                Center(
-                  child: GestureDetector(
-                    onTap: _toggleListening,
-                    child: Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: _isListening
-                            ? const Color(0xFF2ECC71)
-                            : Colors.white.withOpacity(0.3),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
-                            blurRadius: 20,
-                            spreadRadius: 5,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.mic_rounded,
-                        size: 60,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
+                  ],
                 ),
-                // STOP button at the bottom with padding
-                Positioned(
-                  bottom: 16,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: ElevatedButton.icon(
-                      onPressed: _handleStop,
-                      icon: Icon(
-                        _isListening ? Icons.stop : Icons.stop_circle,
-                        color: _isListening ? Colors.white : Colors.grey[600],
-                      ),
-                      label: Text(
-                        _isListening ? 'STOP' : 'STOPPED',
-                        style: TextStyle(
-                          color: _isListening ? Colors.white : Colors.grey[600],
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            _isListening ? Colors.red : Colors.grey[300],
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                child: const Icon(Icons.mic_rounded,
+                    size: 60, color: Colors.white),
+              ),
             ),
           ),
-          SizedBox(
-            height: panelHeight,
+
+          // Transcript panel at bottom
+          Align(
+            alignment: Alignment.bottomCenter,
             child: TranscriptPanel(
               messages: _messages,
-              inProgressText: _messageInProcess, // <- show live text
+              inProgressText: _messageInProcess,
+              onStop: _handleStop,
             ),
           ),
         ],
       ),
-      bottomNavigationBar: SizedBox(
-        height: bottomBarHeight + bottomInset,
-        child: BottomNavBar(
-          currentIndex: _currentNavIndex,
-          onTap: _handleNavigation,
-        ),
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: _currentNavIndex,
+        onTap: _handleNavigation,
       ),
     );
   }
