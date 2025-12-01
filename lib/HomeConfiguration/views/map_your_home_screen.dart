@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:flutter_tts/flutter_tts.dart';
 import '../../shared/widgets/bottom_nav_bar.dart';
 import '../../shared/widgets/top_nav_bar.dart';
+import 'package:visualguide/HomeConfiguration/services/homeConfiguration_service.dart';
 
 class MapYourHomeScreen extends StatefulWidget {
   const MapYourHomeScreen({Key? key}) : super(key: key);
@@ -15,9 +16,13 @@ class MapYourHomeScreen extends StatefulWidget {
 }
 
 class _MapYourHomeScreenState extends State<MapYourHomeScreen> {
+
+  final HomeconfigurationService _homeconfigurationService = HomeconfigurationService();
+
   CameraController? _cameraController;
   List<CameraDescription>? cameras;
   bool _isCameraInitialized = false;
+  String _user_id = "User001";
   String _dynamicText =
       'Some images of your home, will help us to guide you in your day to day life.';
 
@@ -119,15 +124,14 @@ class _MapYourHomeScreenState extends State<MapYourHomeScreen> {
     mappingPhase = 1;
   }
 
-  Future<void> _savePhoto(String path, String phaseName) async {
+  Future<void> _savePhoto(String path, String phaseName, String name) async {
     final Directory baseDir = await getApplicationDocumentsDirectory();
     final Directory destinyDir =
         Directory(p.join(baseDir.path, "mapping_images", phaseName));
     if (!await destinyDir.exists()) {
       await destinyDir.create(recursive: true);
     }
-    final String fileName = p.basename(path);
-    final String newPath = p.join(destinyDir.path, fileName);
+    final String newPath = p.join(destinyDir.path, name);
     final File imageFile = File(path);
     await imageFile.rename(newPath);
     debugPrint("Photo in $path saved in $newPath");
@@ -138,7 +142,7 @@ class _MapYourHomeScreenState extends State<MapYourHomeScreen> {
     final Directory mappingDir =
         Directory(p.join(baseDir.path, "mapping_images"));
     final Directory destinyDir =
-        Directory(p.join(baseDir.path, "users_mapping", "user_001"));
+        Directory(p.join(baseDir.path, "users_mapping", _user_id));
     if (await destinyDir.exists()) {
       await destinyDir.delete(recursive: true);
     }
@@ -148,6 +152,7 @@ class _MapYourHomeScreenState extends State<MapYourHomeScreen> {
       await mappingDir.rename(newPath);
     }
     debugPrint("Saving full data in local archives");
+    _homeconfigurationService.sendRagConfigurationCommand(_user_id, newPath);
   }
 
   // Show loading animation and then redirect to /aiRecognition
@@ -226,37 +231,37 @@ class _MapYourHomeScreenState extends State<MapYourHomeScreen> {
       String nextText = '';
       switch (mappingPhase) {
         case 1:
-          _savePhoto(_roomImagePath, "living_room");
+          _savePhoto(_roomImagePath, "living_room","living_room_1.jpg");
           nextText = "Now take another photo of the living room";
           mappingPhase = 2;
           break;
         case 2:
-          _savePhoto(_roomImagePath, "living_room");
+          _savePhoto(_roomImagePath, "living_room", "living_room_2.jpg");
           nextText = "Now take a photo of your bedroom";
           mappingPhase = 3;
           break;
         case 3:
-          _savePhoto(_roomImagePath, "bedroom");
+          _savePhoto(_roomImagePath, "bedroom", "bedroom_1.jpg");
           nextText = "Now take another photo of your bedroom";
           mappingPhase = 4;
           break;
         case 4:
-          _savePhoto(_roomImagePath, "bedroom");
+          _savePhoto(_roomImagePath, "bedroom", "bedroom_2.jpg");
           nextText = "Now take a photo of your kitchen";
           mappingPhase = 5;
           break;
         case 5:
-          _savePhoto(_roomImagePath, "kitchen");
+          _savePhoto(_roomImagePath, "kitchen", "kitchen.jpg");
           nextText = "Now take a photo of your dining room";
           mappingPhase = 6;
           break;
         case 6:
-          _savePhoto(_roomImagePath, "dining_room");
+          _savePhoto(_roomImagePath, "dining_room", "dining_room.jpg");
           nextText = "Now take a photo of your bathroom";
           mappingPhase = 7;
           break;
         case 7:
-          _savePhoto(_roomImagePath, "bathroom");
+          _savePhoto(_roomImagePath, "bathroom", "bathroom.jpg");
           // Finish mapping: persist data then show animation and redirect
           mappingPhase = 0;
           _isMapping = false;
