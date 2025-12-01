@@ -16,16 +16,32 @@ class SpeechService {
     await _flutterTts.setPitch(1.0);
   }
 
-  Future<void> startListening(Function(String) onResult) async {
+  /// Start listening with interim and final result callbacks
+  Future<void> startListening(
+    Function(String) onInterimResult, {
+    Function(String)? onFinalResult,
+  }) async {
+    _isListening = true;
     await _speechToText.listen(
       onResult: (result) {
-        onResult(result.recognizedWords);
+        final text = result.recognizedWords;
+        if (result.finalResult) {
+          // Final recognized text
+          if (onFinalResult != null && text.isNotEmpty) {
+            onFinalResult(text);
+          }
+        } else {
+          // Interim partial text
+          onInterimResult(text);
+        }
       },
       localeId: 'es_ES',
+      listenMode: ListenMode.confirmation, // ensures finalResult is called
     );
   }
 
   Future<void> stopListening() async {
+    _isListening = false;
     await _speechToText.stop();
   }
 
@@ -38,15 +54,11 @@ class SpeechService {
     await stopListening();
   }
 
-  // Método para cambiar la velocidad de habla dinámicamente
   Future<void> setSpeechRate(double rate) async {
-    // rate debe estar entre 0.0 y 1.0
     await _flutterTts.setSpeechRate(rate);
   }
 
-  // Método para cambiar el tono de voz
   Future<void> setVoiceTone(String tone) async {
-    // TODO: Implementar lógica para diferentes tonos
     switch (tone) {
       case 'serious':
         await _flutterTts.setPitch(0.8);
